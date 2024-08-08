@@ -244,6 +244,7 @@ std::pair<size_t, size_t> fillKmerPositionArray(KmerPosition<T> * kmerArray, siz
                     threadKmerBuffer[bufferPos].id = seqId;
                     threadKmerBuffer[bufferPos].pos = 0;
                     threadKmerBuffer[bufferPos].seqLen = seq.L;
+                    // initialize with blank value
                     for (size_t i = 0; i < 6; i++) {
                         if (TYPE == Parameters::DBTYPE_NUCLEOTIDES) {
                             threadKmerBuffer[bufferPos].adjacentSeq[i] = static_cast<unsigned char>(4);
@@ -324,13 +325,15 @@ std::pair<size_t, size_t> fillKmerPositionArray(KmerPosition<T> * kmerArray, siz
 //                                tmpKmerIdx=BIT_CLEAR(tmpKmerIdx, 63);
 //                                std::cout << seqId << "\t" << (kmers + kmerIdx)->score << "\t" << tmpKmerIdx << std::endl;
 //                            }
+
+                            // 
                             threadKmerBuffer[bufferPos].kmer = (kmers + kmerIdx)->kmer;
                             threadKmerBuffer[bufferPos].id = seqId;
                             threadKmerBuffer[bufferPos].pos = (kmers + kmerIdx)->pos;
                             threadKmerBuffer[bufferPos].seqLen = seq.L;
                             // store adjacent seq information
-                            unsigned int startPos = (kmers + kmerIdx)->pos;
-                            unsigned int endPos = (kmers + kmerIdx)->pos + adjustedKmerSize - 1;
+                            unsigned int startPos = (kmers + kmerIdx)->pos; // start pos of Kmer
+                            unsigned int endPos = (kmers + kmerIdx)->pos + adjustedKmerSize - 1; // end of kmer
                             for (size_t i = 0; i < 6; i++) {
                                 if (TYPE == Parameters::DBTYPE_NUCLEOTIDES) {
                                     threadKmerBuffer[bufferPos].adjacentSeq[i] = static_cast<unsigned char>(4);
@@ -338,6 +341,7 @@ std::pair<size_t, size_t> fillKmerPositionArray(KmerPosition<T> * kmerArray, siz
                                     threadKmerBuffer[bufferPos].adjacentSeq[i] = static_cast<unsigned char>(12);
                                 }                            
                             }
+                            // check and fill buffer
                             if (startPos >= 3) {
                                 threadKmerBuffer[bufferPos].adjacentSeq[0] = seq.numSequence[startPos - 3];
                                 threadKmerBuffer[bufferPos].adjacentSeq[1] = seq.numSequence[startPos - 2];
@@ -543,10 +547,10 @@ KmerPosition<T> * doComputation(size_t &totalKmers, size_t hashStartRange, size_
     }
 
     delete sequenceWeights;
-    if (writePos == SIZE_T_MAX) {
+    if (writePos == SIZE_T_MAX) { // if memory was insufficient (buffer burst)
         delete [] hashSeqPair;
         totalKmers = 0;
-        return NULL;
+        return NULL; // reset all and rerun
     }
 
     // sort by rep. sequence (stored in kmer) and sequence id
@@ -576,6 +580,7 @@ KmerPosition<T> * doComputation(size_t &totalKmers, size_t hashStartRange, size_
 }
 
 template <int TYPE, typename T>
+// each seq data size 16 -> 22
 size_t assignGroup(KmerPosition<T> *hashSeqPair, size_t splitKmerCount, bool includeOnlyExtendable, int covMode, float covThr,
         SequenceWeights *sequenceWeights, float weightThr, BaseMatrix *subMat, float &hashSeqBuffer) {
  
@@ -708,7 +713,7 @@ size_t assignGroup(KmerPosition<T> *hashSeqPair, size_t splitKmerCount, bool inc
                             }else {
                                 hashSeqBuffer = 1 + (static_cast<float>(splitKmerCount) / static_cast<float>(writePos)) * (hashSeqBuffer - 0.95);
                                 Debug(Debug::INFO) << "\n" << "Buffer size is unsufficient, splitting again" << "\n\n";
-                                return SIZE_T_MAX;
+                                return SIZE_T_MAX; // return otherwise impossible value
                             }
                         }
                     }
@@ -818,6 +823,8 @@ int kmermatcherInner(Parameters& par, DBReader<unsigned int>& seqDbr) {
     Debug(Debug::INFO) << "\n";
     float kmersPerSequenceScale = (Parameters::isEqualDbtype(querySeqType, Parameters::DBTYPE_NUCLEOTIDES)) ?
                                         par.kmersPerSequenceScale.values.nucleotide() : par.kmersPerSequenceScale.values.aminoacid();
+    // declare with buffer added (in order to assign and maintain entire memory as one
+    // 준수님 수정하신 버전에는 여기 뒤에 버퍼를 제외한 원래 사이즈로 복구해서 필요한 메모리를 계산. 이렇게 안 하면 필요한 파티션 개수를 계산할 때 실제로 필요한 것보다 1.5배 적게 산정함
     size_t totalKmers = static_cast<size_t>(computeKmerCount(seqDbr, par.kmerSize, par.kmersPerSequence, kmersPerSequenceScale) * par.hashSeqBuffer);
     size_t totalSizeNeeded = computeMemoryNeededLinearfilter<T>(totalKmers);
     // compute splits
