@@ -540,6 +540,7 @@ size_t assignGroup(KmerPosition<T> *hashSeqPair, size_t splitKmerCount, bool inc
         if(TYPE == Parameters::DBTYPE_NUCLEOTIDES){
             currKmer = BIT_SET(currKmer, 63);
         }
+        Debug(Debug::INFO) << "MYLOG: " << "current Kmer: " << currKmer << "\n";
         if (prevHash != currKmer) {
             for (size_t i = prevHashStart; i < elementIdx; i++) {
                 // skip target sequences if weight > weightThr
@@ -594,7 +595,7 @@ size_t assignGroup(KmerPosition<T> *hashSeqPair, size_t splitKmerCount, bool inc
                         diagonal = queryPos - targetPos;
                         rId = (queryNeedsToBeRev) ? BIT_CLEAR(rId, 63) : BIT_SET(rId, 63);
                     }
-//                    std::cout << diagonal << "\t" << repSeq_i_pos << "\t" << hashSeqPair[i].pos << std::endl;
+                    Debug(Debug::INFO) << "MYLOG: " << diagonal << "\t" << repSeq_i_pos << "\t" << hashSeqPair[i].pos << "\n";
 
 
                     bool canBeExtended = diagonal < 0 || (diagonal > (queryLen - hashSeqPair[i].seqLen));
